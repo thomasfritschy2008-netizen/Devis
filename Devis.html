@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devis Voyage Premium</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    font-family: 'Playfair Display', serif;
+    margin:0; padding:0;
+    background: linear-gradient(to bottom, #0a1432 0%, #00041a 100%);
+    color:#fff;
+    background-image: url('https://i.ibb.co/7QpKsCX/galaxy-bg.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+}
+.container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: rgba(10,20,50,0.9);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.7);
+    border: 3px solid #FFDDA0;
+}
+h1, h2 { color:#FFDDA0; margin-bottom:10px; }
+h1 { font-size:2em; text-align:center; }
+h2 { font-size:1.5em; border-bottom:2px solid #FFDDA0; padding-bottom:5px; margin-bottom:15px; }
+label { display:block; margin-top:15px; font-weight:bold; color:#FFDDA0; }
+input[type="text"], input[type="number"], textarea, input[type="date"], input[type="time"], input[type="url"] {
+    width:100%; padding:10px; border-radius:10px; border:none; margin-top:5px;
+    font-size:1em;
+}
+textarea { resize:vertical; }
+button {
+    background-color:#FFDDA0; color:#0a1432; border:none; padding:12px 25px;
+    border-radius:12px; font-size:1em; cursor:pointer; margin-top:20px; transition:0.3s;
+    font-weight:bold;
+}
+button:hover { background-color:#e6c200; }
+.devis-output {
+    background-color: rgba(255, 221, 160, 0.1);
+    padding:25px; border-radius:15px; margin-top:20px; border:2px solid #FFDDA0;
+}
+.section { margin-bottom:30px; padding-bottom:20px; }
+.dynamic-entry {
+    background: rgba(255,221,160,0.05); padding:15px; margin-top:10px; border-radius:10px; border-left:3px solid #FFDDA0; position: relative;
+}
+.delete-btn {
+    position: absolute; top:10px; right:10px; background:red; color:white; border:none; border-radius:50%; width:25px; height:25px; cursor:pointer;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+<h1>Devis Voyage Premium</h1>
+
+<div class="section">
+<h2>Informations client</h2>
+<label>Nom complet</label>
+<input type="text" id="clientName" placeholder="Ex: Jean Dupont">
+<label>Email</label>
+<input type="text" id="clientEmail" placeholder="Ex: jean@example.com">
+</div>
+
+<div class="section">
+<h2>Voyage</h2>
+<label>Destination</label>
+<input type="text" id="destination" placeholder="Ex: Maldives">
+<label>Date de départ</label>
+<input type="date" id="departureDate">
+<label>Durée (jours)</label>
+<input type="number" id="duration" placeholder="Ex: 7">
+<label>Image principale (URL)</label>
+<input type="url" id="imageUrl" placeholder="Ex: https://monimage.com/maldives.jpg">
+</div>
+
+<div class="section">
+<h2>Vols</h2>
+<div id="flightsContainer"></div>
+<button type="button" onclick="addFlight()">Ajouter un vol</button>
+</div>
+
+<div class="section">
+<h2>Excursions</h2>
+<div id="excursionsContainer"></div>
+<button type="button" onclick="addExcursion()">Ajouter une excursion</button>
+</div>
+
+<div class="section">
+<h2>Prix</h2>
+<label>Prix estimatif en €</label>
+<input type="number" id="price" placeholder="Ex: 7500">
+</div>
+
+<button onclick="generateQuote()">Afficher le devis</button>
+<button onclick="downloadPDF()">Télécharger le PDF</button>
+
+<div class="devis-output" id="devisOutput" style="display:none;">
+<h2>Votre devis</h2>
+<p id="outputText"></p>
+</div>
+</div>
+
+<script>
+function addFlight() {
+  const container = document.getElementById('flightsContainer');
+  const div = document.createElement('div');
+  div.className = 'dynamic-entry';
+  div.innerHTML = `
+    <button class="delete-btn" onclick="this.parentElement.remove()">×</button>
+    <label>Compagnie</label><input type="text" class="flightCompany" placeholder="Ex: Air France">
+    <label>Numéro de vol</label><input type="text" class="flightNumber" placeholder="Ex: AF123">
+    <label>Date du vol</label><input type="date" class="flightDate">
+    <label>Heure de départ</label><input type="time" class="flightTime">
+    <label>Escales</label><input type="text" class="flightStopover" placeholder="Ex: Doha">
+  `;
+  container.appendChild(div);
+}
+
+function addExcursion() {
+  const container = document.getElementById('excursionsContainer');
+  const div = document.createElement('div');
+  div.className = 'dynamic-entry';
+  div.innerHTML = `
+    <button class="delete-btn" onclick="this.parentElement.remove()">×</button>
+    <label>Nom de l'excursion</label><input type="text" class="excursionName" placeholder="Ex: Snorkeling">
+    <label>Date</label><input type="date" class="excursionDate">
+    <label>Description</label><textarea class="excursionDesc" rows="2" placeholder="Ex: Découverte des récifs coralliens"></textarea>
+  `;
+  container.appendChild(div);
+}
+
+function generateQuote() {
+  const name = document.getElementById('clientName').value;
+  const destination = document.getElementById('destination').value;
+  const departureDate = document.getElementById('departureDate').value;
+  const duration = document.getElementById('duration').value;
+  const imageUrl = document.getElementById('imageUrl').value;
+  const price = document.getElementById('price').value;
+
+  if(!name || !destination || !departureDate || !duration || !price){
+    alert("Veuillez remplir les champs essentiels !");
+    return;
+  }
+
+  let flightsHTML = '';
+  document.querySelectorAll('#flightsContainer .dynamic-entry').forEach((f,i) => {
+    const company = f.querySelector('.flightCompany').value;
+    const number = f.querySelector('.flightNumber').value;
+    const date = f.querySelector('.flightDate').value;
+    const time = f.querySelector('.flightTime').value;
+    const stopover = f.querySelector('.flightStopover').value;
+    if(company){
+      flightsHTML += `<strong>Vol :</strong>  , Date: , Départ: , Escales: <br>`;
+    }
+  });
+
+  let excursionsHTML = '';
+  document.querySelectorAll('#excursionsContainer .dynamic-entry').forEach((e,i) => {
+    const nameE = e.querySelector('.excursionName').value;
+    const dateE = e.querySelector('.excursionDate').value;
+    const desc = e.querySelector('.excursionDesc').value;
+    if(nameE) excursionsHTML += `<strong>Excursion :</strong>  () - <br>`;
+  });
+
+  const output = `
+    <img src="" alt="Destination" style="width:100%; border-radius:15px; margin-bottom:15px; border:2px solid #FFDDA0;">
+    Cher ,<br><br>
+    Voici votre devis pour un voyage exclusif vers <strong></strong>.<br>
+    <strong>Date de départ :</strong> <br>
+    <strong>Durée :</strong>  jours<br>
+    #FFDDA0;">Vols</h3>` : ''
+    #FFDDA0;">Excursions</h3>` : ''
+    <strong>Prix estimatif :</strong>  €<br><br>
+    Bien cordialement,<br>L'équipe <strong>Nom de l'agence</strong>.
+  `;
+
+  document.getElementById('outputText').innerHTML = output;
+  document.getElementById('devisOutput').style.display = 'block';
+}
+
+async function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'pt', 'a4');
+  const name = document.getElementById('clientName').value;
+  const destination = document.getElementById('destination').value;
+  const departureDate = document.getElementById('departureDate').value;
+  const duration = document.getElementById('duration').value;
+  const imageUrl = document.getElementById('imageUrl').value;
+  const price = document.getElementById('price').value;
+
+  let yPosition = 50;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(255, 221, 160);
+  doc.text(`Devis Voyage Premium`, 40, yPosition);
+
+  if(imageUrl){
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageUrl;
+    await new Promise((resolve) => {
+      img.onload = () => {
+        const imgWidth = 500;
+        const imgHeight = (img.height / img.width) * imgWidth;
+        doc.addImage(img, 'JPEG', 40, 70, imgWidth, imgHeight);
+        yPosition += imgHeight + 30;
+        resolve();
+      };
+      img.onerror = () => resolve();
+    });
+  } else { yPosition += 50; }
+
+  doc.setFontSize(12);
+  doc.setTextColor(255,255,255);
+  doc.text(`Cher ,`, 40, yPosition);
+  yPosition += 20;
+  doc.text(`Voici votre devis pour un voyage exclusif vers .`, 40, yPosition);
+  yPosition += 20;
+  doc.text(`Date de départ: `, 40, yPosition);
+  yPosition += 20;
+  doc.text(`Durée:  jours`, 40, yPosition);
+  yPosition += 20;
+
+  document.querySelectorAll('#flightsContainer .dynamic-entry').forEach((f,i) => {
+    const company = f.querySelector('.flightCompany').value;
+    const number = f.querySelector('.flightNumber').value;
+    const date = f.querySelector('.flightDate').value;
+    const time = f.querySelector('.flightTime').value;
+    const stopover = f.querySelector('.flightStopover').value;
+    if(company){
+      doc.text(`Vol :  , Date: , Départ: , Escales: `, 40, yPosition);
+      yPosition += 20;
+    }
+  });
+
+  document.querySelectorAll('#excursionsContainer .dynamic-entry').forEach((e,i) => {
+    const nameE = e.querySelector('.excursionName').value;
+    const dateE = e.querySelector('.excursionDate').value;
+    const desc = e.querySelector('.excursionDesc').value;
+    if(nameE){
+      doc.text(`Excursion :  () - `, 40, yPosition);
+      yPosition += 20;
+    }
+  });
+
+  yPosition += 10;
+  doc.text(`Prix estimatif:  €`, 40, yPosition);
+  yPosition += 40;
+  doc.text(`Bien cordialement,`, 40, yPosition);
+  yPosition += 20;
+  doc.text(`L'équipe Nom de l'agence`, 40, yPosition);
+
+  doc.save(`devis_.pdf`);
+}
+</script>
+
+</body>
+</html>
